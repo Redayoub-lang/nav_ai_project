@@ -1,0 +1,12 @@
+﻿# Build outputs
+build/
+*.exe
+*.o
+*.obj
+
+# Python temporary files
+__pycache__/
+*.pyc
+
+# Libraries downloaded dynamically
+eigen.zip
