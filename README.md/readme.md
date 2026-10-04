@@ -1,15 +1,38 @@
-# 🛸 Autonomous GPS-Denied UAV Navigation (nav_ai)
+# NavAI: Advanced 12-DOF Drone Dynamics & Anti-Jamming System
 
-An advanced C++20 trajectory optimization and anti-jamming framework for quadrotors. Developed for high-performance aerial robotics research.
+NavAI est un environnement de simulation hybride haute performance conçu pour tester la dynamique de vol de drones et les algorithmes de navigation anti-brouillage basés sur l'IA.
 
-## 🧠 System Architecture
-This project implements non-linear quadrotor dynamics using Eigen3. The state vector is defined as:
-$$\mathbf{x} = [x, y, z, \phi, \theta, \psi, \dot{x}, \dot{y}, \dot{z}, \dot{\phi}, \dot{\theta}, \dot{\psi}]^T$$🚀 Build InstructionsRun the following commands in your terminal:Bashg++ -std=c++20 -O3 src/main.cpp -I ./eigen -o build/nav_ai.exe
-.\build\nav_ai.exe
+## 🏗️ Architecture du Système
 
-### 4. التجميع والتشغيل
-افتح الـ Terminal في VS Code (`Ctrl + ~`)، وتأكد أنك داخل مجلد `nav_ai_project`، ثم قم بتشغيل الأوامر التالية بالترتيب:
+Le projet est structuré en deux modules complémentaires :
+1. **Moteur de dynamique de vol C++ (`/src`, `/include`)** : Modèle mathématique à 12 degrés de liberté (12-DOF) calculant la position, la vitesse, l'orientation et les vitesses angulaires avec la bibliothèque `Eigen`.
+2. **Module d'IA Python (`/ai_module`)** : Pipeline d'intelligence artificielle traitant les données de télémétrie, corrigeant les interférences de signal et affichant la trajectoire en temps réel.
 
-```powershell
-g++ -std=c++20 -O3 src/main.cpp -I ./eigen -o build/nav_ai.exe
-.\build\nav_ai.exe
+## 📂 Structure du Projet
+
+```text
+nav_ai_project/
+├── ai_module/
+│   ├── anti_jamming.py       # Algorithmes d'IA anti-brouillage et filtrage
+│   └── visualizer.py         # Visualisation graphique de la trajectoire
+├── build/
+│   └── flight_dynamics.exe   # Exécutable du moteur physique
+├── eigen/                    # Bibliothèque C++ Eigen (algèbre linéaire)
+├── include/
+│   └── drone_dynamics.hpp    # Modèle physique 12-DOF
+├── src/
+│   └── main.cpp              # Point d'entrée C++
+├── README.md                 # Documentation du projet
+└── run_full_system.py        # Script maître liant le C++ et Python
+⚙️ Prérequis
+Environnement C++ : Compilateur g++ (GCC) et Eigen 3.4.0
+
+Environnement Python : Python 3.8+, numpy, matplotlib
+
+🚀 Compilation et Exécution
+1. Compilation du moteur C++
+PowerShell
+g++ -O3 -I ./eigen -I ./eigen/eigen-3.4.0 src/main.cpp -o build/flight_dynamics.exe
+2. Lancement du système complet
+PowerShell
+python run_full_system.py
