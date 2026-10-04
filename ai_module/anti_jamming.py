@@ -1,51 +1,31 @@
 import numpy as np
-from sklearn.ensemble import IsolationForest
-from visualizer import plot_flight_telemetry
 
-def run_ai_protection():
-    print("=========================================")
-    print("[AI Module] Initializing Anti-Jamming Subsystem...")
-    print("=========================================\n")
+class AntiJammingFilter:
+    def __init__(self, snr_threshold=15.0):
+        self.snr_threshold = snr_threshold
+        self.last_valid_pos = None
+        self.corrected_trajectory = []
 
-    # 1. توليد بيانات نظيفة لتدريب النموذج (Baseline Data)
-    np.random.seed(42)
-    clean_data = np.random.normal(loc=[0, 0, 10, 35], scale=[0.1, 0.1, 0.2, 2.0], size=(100, 4))
-    
-    model = IsolationForest(contamination=0.15, random_state=42)
-    model.fit(clean_data)
-    print("[AI Module] IsolationForest Trained on Clean Telemetry.")
-
-    # 2. محاكاة قراءات الحساسات والارتفاع 3D مع هجمات تشويش
-    time_steps = list(range(20))
-    telemetry_data = []
-    anomalies = []
-
-    for t in time_steps:
-        # مسار طيران مع ارتفاع تدريجي
-        pos_x = t * 0.5
-        pos_y = np.sin(t * 0.3) * 2.0
-        pos_z = 0.5 * t
+    def process_step(self, telemetry_state, snr_level, dt=0.1):
+        """
+        telemetry_state : [x, y, z, vx, vy, vz, roll, pitch, yaw, wx, wy, wz]
+        """
+        raw_pos = np.array(telemetry_state[0:3])
+        velocity = np.array(telemetry_state[3:6])
         
-        # محاكاة هجوم تشويش عند الخطوات t=6, 7, 14
-        if t in [6, 7, 14]:
-            gps_snr = np.random.uniform(2.0, 8.0) # هبوط حاد في الإشارة (Jamming)
+        is_jammed = snr_level < self.snr_threshold
+        
+        if not is_jammed:
+            # Mode Nominal : Recalage GPS
+            corrected_pos = raw_pos
+            self.last_valid_pos = corrected_pos.copy()
         else:
-            gps_snr = np.random.uniform(30.0, 40.0) # إشارة سليمة
-
-        data_sample = [pos_x, pos_y, pos_z, gps_snr]
-        telemetry_dict = {'x': pos_x, 'y': pos_y, 'z': pos_z, 'gps_snr': gps_snr}
-        telemetry_data.append(telemetry_dict)
-
-        # التنبؤ بواسطة AI
-        prediction = model.predict([data_sample])[0]
-        is_jammed = (prediction == -1) or (gps_snr < 15.0)
-        anomalies.append(is_jammed)
-
-        status = "🔴 JAMMING DETECTED! Switching to Vision/IMU" if is_jammed else "🟢 GPS Signal Normal"
-        print(f"T+{t}s | Pos: ({pos_x:.1f}, {pos_y:.1f}, {pos_z:.1f}) | SNR: {gps_snr:.1f} dB -> {status}")
-
-    # 3. عرض واستخراج الرسم البياني
-    plot_flight_telemetry(time_steps, telemetry_data, anomalies)
-
-if __name__ == "__main__":
-    run_ai_protection()
+            # Mode Anti-Brouillage : Intégration Inertielle (Dead Reckoning)
+            if self.last_valid_pos is not None:
+                corrected_pos = self.last_valid_pos + velocity * dt
+                self.last_valid_pos = corrected_pos.copy()
+            else:
+                corrected_pos = raw_pos
+                
+        self.corrected_trajectory.append(corrected_pos)
+        return corrected_pos, is_jammed
