@@ -1,52 +1,51 @@
 import numpy as np
 from sklearn.ensemble import IsolationForest
-import time
+from visualizer import plot_flight_telemetry
 
-class AINavSecurity:
-    def __init__(self):
-        print("=========================================")
-        print("[AI Module] Initializing Anti-Jamming Subsystem...")
-        print("=========================================\n")
-        # إعداد النموذج: نفترض أن 5% من البيانات قد تكون محاولات اختراق أو تشويش
-        self.model = IsolationForest(n_estimators=100, contamination=0.05, random_state=42)
-        self.is_trained = False
+def run_ai_protection():
+    print("=========================================")
+    print("[AI Module] Initializing Anti-Jamming Subsystem...")
+    print("=========================================\n")
 
-    def train_baseline(self, clean_sensor_data):
-        print("[AI Module] Training model on clean GPS/IMU flight data (Baseline)...")
-        self.model.fit(clean_sensor_data)
-        self.is_trained = True
-        print("[AI Module] Training complete. Threat detection is ARMED.\n")
+    # 1. توليد بيانات نظيفة لتدريب النموذج (Baseline Data)
+    np.random.seed(42)
+    clean_data = np.random.normal(loc=[0, 0, 10, 35], scale=[0.1, 0.1, 0.2, 2.0], size=(100, 4))
+    
+    model = IsolationForest(contamination=0.15, random_state=42)
+    model.fit(clean_data)
+    print("[AI Module] IsolationForest Trained on Clean Telemetry.")
 
-    def analyze_telemetry(self, live_sensor_data):
-        if not self.is_trained:
-            raise RuntimeError("Cannot analyze telemetry. Model is not trained.")
+    # 2. محاكاة قراءات الحساسات والارتفاع 3D مع هجمات تشويش
+    time_steps = list(range(20))
+    telemetry_data = []
+    anomalies = []
+
+    for t in time_steps:
+        # مسار طيران مع ارتفاع تدريجي
+        pos_x = t * 0.5
+        pos_y = np.sin(t * 0.3) * 2.0
+        pos_z = 0.5 * t
         
-        # التنبؤ: القيمة 1 تعني بيانات آمنة، -1 تعني اكتشاف هجوم أو تشويش
-        predictions = self.model.predict(live_sensor_data)
-        return predictions
+        # محاكاة هجوم تشويش عند الخطوات t=6, 7, 14
+        if t in [6, 7, 14]:
+            gps_snr = np.random.uniform(2.0, 8.0) # هبوط حاد في الإشارة (Jamming)
+        else:
+            gps_snr = np.random.uniform(30.0, 40.0) # إشارة سليمة
+
+        data_sample = [pos_x, pos_y, pos_z, gps_snr]
+        telemetry_dict = {'x': pos_x, 'y': pos_y, 'z': pos_z, 'gps_snr': gps_snr}
+        telemetry_data.append(telemetry_dict)
+
+        # التنبؤ بواسطة AI
+        prediction = model.predict([data_sample])[0]
+        is_jammed = (prediction == -1) or (gps_snr < 15.0)
+        anomalies.append(is_jammed)
+
+        status = "🔴 JAMMING DETECTED! Switching to Vision/IMU" if is_jammed else "🟢 GPS Signal Normal"
+        print(f"T+{t}s | Pos: ({pos_x:.1f}, {pos_y:.1f}, {pos_z:.1f}) | SNR: {gps_snr:.1f} dB -> {status}")
+
+    # 3. عرض واستخراج الرسم البياني
+    plot_flight_telemetry(time_steps, telemetry_data, anomalies)
 
 if __name__ == "__main__":
-    ai_security = AINavSecurity()
-    
-    # 1. تدريب النظام على بيانات طيران آمنة ومستقرة (أشبه بالوضع الطبيعي للطائرة)
-    # توليد 500 قراءة لـ 12 متغير (تطابق أبعاد الحالة x في C++)
-    clean_flight_data = np.random.normal(loc=0.0, scale=1.0, size=(500, 12))
-    ai_security.train_baseline(clean_flight_data)
-    
-    # 2. محاكاة رحلة حية تتعرض لهجوم تشويش
-    print("[AI Module] Monitoring live flight telemetry...\n")
-    time.sleep(1)
-    
-    # 5 قراءات طبيعية، تليها قراءة واحدة شاذة جداً (محاكاة فقدان أو تشويش إشارة الـ GPS)
-    live_data = np.random.normal(loc=0.0, scale=1.0, size=(6, 12))
-    live_data[5] = live_data[5] * 20.0 # تضخيم القيم لتمثيل نبضة التشويش
-    
-    analysis_results = ai_security.analyze_telemetry(live_data)
-    
-    for i, status in enumerate(analysis_results):
-        if status == 1:
-            print(f"T+{i}ms: 🟢 Signals Secure. Navigating normally.")
-        else:
-            print(f"T+{i}ms: 🔴 JAMMING DETECTED! Blocking GPS. Switching to Vision/IMU.")
-            
-    print("\n[AI Module] Simulation finished.")
+    run_ai_protection()
